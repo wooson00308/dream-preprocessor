@@ -225,17 +225,6 @@ dream-heartbeat once -j "잡이름"  # 특정 잡 1회 실행
 | L2 | topic 파일 | 정제된 지식 |
 | L3 | transcript JSONL | 대화 원본 |
 
-## 트러블슈팅
-
-dream-heartbeat status에서 "실행 중인 heartbeat 없음"이 뜰 때:
-- `launchctl list | grep dream` 으로 launchd 등록 상태 확인
-- 로그 확인: `cat ~/.claude/dream-heartbeat/launchd_stderr.log`
-- PATH에 claude, dream-heartbeat, dream-prep이 모두 포함되어 있는지 확인
-
-claude -p 실행이 실패할 때:
-- `claude -p "/dream"` 을 직접 실행해서 에러 확인
-- /dream 스킬이 `~/.claude/skills/dream/SKILL.md`에 있는지 확인
-
 ## 라이선스
 
 MIT
