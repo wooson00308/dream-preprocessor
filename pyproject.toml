@@ -1,0 +1,14 @@
+[project]
+name = "dream-preprocessor"
+version = "0.1.0"
+description = "Dream tools — transcript preprocessor + heartbeat daemon"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+dream-prep = "dream_preprocessor.preprocess:main"
+dream-heartbeat = "dream_preprocessor.heartbeat:main"
