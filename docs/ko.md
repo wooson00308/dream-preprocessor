@@ -68,7 +68,7 @@ heartbeat install dream       # 스킬 설치
 
 세션 transcript를 자동으로 정제하여 장기 기억에 반영합니다. Claude Code는 매 대화를 JSONL로 저장하지만 다음 세션에서 다시 읽지 않습니다. dream 스킬이 이 transcript를 처리하여, 다음 세션이 시작될 때 이전 맥락을 이미 알고 있는 상태로 만들어줍니다.
 
-자세한 내용은 [skills/dream/README.md](../skills/dream/README.md)를 참고하세요.
+자세한 내용은 [skills/dream/README_ko.md](../skills/dream/README_ko.md)를 참고하세요.
 
 ---
 
