@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 HEARTBEAT_FILE = Path.home() / ".claude" / "HEARTBEAT.md"
-LOG_DIR = Path.home() / ".claude" / "dream-heartbeat"
+LOG_DIR = Path.home() / ".claude" / "heartbeat"
 PID_FILE = LOG_DIR / "heartbeat.pid"
 STATE_FILE = LOG_DIR / "state.json"
 

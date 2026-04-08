@@ -74,9 +74,9 @@ cat > ~/Library/LaunchAgents/com.claude-heartbeat.plist << 'EOF'
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/yourname/.claude/dream-heartbeat/launchd_stdout.log</string>
+    <string>/Users/yourname/.claude/heartbeat/launchd_stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yourname/.claude/dream-heartbeat/launchd_stderr.log</string>
+    <string>/Users/yourname/.claude/heartbeat/launchd_stderr.log</string>
     <key>WorkingDirectory</key>
     <string>/Users/yourname</string>
     <key>EnvironmentVariables</key>
