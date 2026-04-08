@@ -146,17 +146,6 @@ heartbeat skills          # 사용 가능한 스킬 목록
 heartbeat install <name>  # 스킬 설치
 ```
 
-## 복구
-
-Claude Code를 재설치하여 `~/.claude/`가 초기화된 경우, 데몬은 크래시하지 않고 잡이 없는 상태로 대기합니다. 복구하려면:
-
-```bash
-heartbeat init              # HEARTBEAT.md 재생성
-heartbeat install dream     # 스킬 재설치 + 잡 등록
-```
-
-launchd plist와 pip 패키지는 Claude 재설치의 영향을 받지 않으므로 데몬 자체는 계속 실행됩니다.
-
 ## v0.1에서 마이그레이션
 
 `dream-preprocessor` v0.1에서 업그레이드하는 경우:

@@ -153,17 +153,6 @@ heartbeat skills          # List available skills
 heartbeat install <name>  # Install a skill
 ```
 
-## Recovery
-
-If you reinstall Claude Code and `~/.claude/` is wiped, the daemon won't crash — it just finds no jobs and waits. To restore:
-
-```bash
-heartbeat init              # Recreate HEARTBEAT.md
-heartbeat install dream     # Reinstall skill + register jobs
-```
-
-Your launchd plist and pip packages survive a Claude reinstall, so the daemon itself keeps running.
-
 ## Migration from v0.1
 
 If you're upgrading from `dream-preprocessor` v0.1:
