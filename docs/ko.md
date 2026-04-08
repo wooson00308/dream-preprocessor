@@ -33,11 +33,31 @@ Heartbeat는 이를 능동형으로 바꿔줍니다.
 
 데몬 자체는 LLM을 호출하지 않습니다. 언제 깨울지만 판단합니다.
 
-## 스킬
+## 무엇을 실행할 수 있나요?
 
-Claude Code는 [사용자 정의 스킬](https://docs.anthropic.com/en/docs/claude-code)을 지원합니다. 재사용 가능한 프롬프트를 만들어 Claude가 필요할 때 실행할 수 있는 프로토콜입니다. Heartbeat는 이 스킬을 주기적으로 자동 실행하는 역할을 합니다.
+`prompt` 필드에는 무엇이든 넣을 수 있습니다. 평문 한 줄, 스킬 명령어, 문서 참조 등 형식에 제한이 없습니다. Heartbeat는 그 내용을 그대로 `claude -p`에 전달합니다.
 
-`dream` 스킬은 이 조합으로 무엇이 가능한지 보여주는 예시로 포함되어 있습니다.
+### 평문 프롬프트
+
+```markdown
+## daily-summary
+- slug: -Users-yourname-Git-myproject
+- prompt: 지난 24시간 git log 확인하고 변경사항 요약해줘
+- interval: 1d
+- timeout: 5m
+
+## lint-check
+- slug: -Users-yourname-Git-myproject
+- prompt: npm run lint 돌려보고 에러 있으면 정리해줘
+- interval: 6h
+- timeout: 3m
+```
+
+### 스킬
+
+Claude Code는 [사용자 정의 스킬](https://docs.anthropic.com/en/docs/claude-code)을 지원합니다. 재사용 가능한 프롬프트를 만들어 Claude가 필요할 때 실행할 수 있는 프로토콜입니다. 더 복잡하거나 여러 단계가 필요한 작업은 스킬로 작성하여 prompt 필드에서 참조할 수 있습니다.
+
+`dream` 스킬은 이 조합의 예시로 포함되어 있습니다.
 
 ```bash
 heartbeat skills              # 사용 가능한 스킬 목록

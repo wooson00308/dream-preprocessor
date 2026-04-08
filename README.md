@@ -33,11 +33,31 @@ A lightweight daemon that periodically wakes Claude on schedule, runs skills, an
 
 The daemon never calls the LLM itself. It only decides when to wake it.
 
-## Skills
+## What can you run?
 
-Claude Code supports [user-created skills](https://docs.anthropic.com/en/docs/claude-code) — reusable prompts that Claude can execute on demand. Heartbeat takes this a step further by running these skills automatically on a schedule.
+The `prompt` field accepts anything — a plain sentence, a skill command, or a reference to documentation. Heartbeat doesn't care what the prompt says. It just passes it to `claude -p`.
 
-The `dream` skill is included as a working example of what's possible with this combination.
+### Plain prompts
+
+```markdown
+## daily-summary
+- slug: -Users-yourname-Git-myproject
+- prompt: Check git log for the last 24 hours and summarize changes
+- interval: 1d
+- timeout: 5m
+
+## lint-check
+- slug: -Users-yourname-Git-myproject
+- prompt: Run npm run lint and fix any errors
+- interval: 6h
+- timeout: 3m
+```
+
+### Skills
+
+Claude Code supports [user-created skills](https://docs.anthropic.com/en/docs/claude-code) — reusable prompts that Claude can execute on demand. For more complex or multi-step tasks, you can write a skill and reference it in the prompt field.
+
+The `dream` skill is included as a working example.
 
 ```bash
 heartbeat skills              # List available skills
