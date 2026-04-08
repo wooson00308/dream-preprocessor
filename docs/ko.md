@@ -7,17 +7,18 @@ _잠을 자야 기억이 남는다._
 ---
 
 ```
- Transcript        dream-prep         /dream            Memory
- (raw JSONL)       (preprocess)       (consolidate)     (topic files)
+  Transcript        dream-prep         /dream             Memory
+  (raw JSONL)       (preprocess)       (consolidate)      (topic files)
 
-  Session 1  ─┐
-  Session 2  ─┤                    ┌─ Orient
-  Session 3  ─┼──►  Markdown  ──► │  Gather        ──►  MEMORY.md
-  Session 4  ─┤     (compact)      │  Consolidate        user.md
-  Session 5  ─┘                    └─ Prune              feedback.md
-                                                        project.md
-       L3                                          L2        L1
-   (raw logs)                                 (knowledge)  (index)
+  Session 1 ─┐
+  Session 2 ─┤
+  Session 3 ─┼─────► Markdown ─────► ┌─ Orient ─────────►  MEMORY.md
+  Session 4 ─┤       (compact)       │  Gather             user.md
+  Session 5 ─┘                       │  Consolidate        feedback.md
+                                     └─ Prune              project.md
+
+      L3                                L2                     L1
+  (raw logs)                        (knowledge)              (index)
 ```
 
 ---
