@@ -103,6 +103,10 @@ For launchd registration and detailed setup, see the [Setup Guide](docs/setup.md
 Jobs are defined in `~/.claude/HEARTBEAT.md`:
 
 ```markdown
+# HEARTBEAT
+
+- tick: 60s
+
 ## my-project
 - slug: -Users-yourname-Git-myproject
 - prompt: /dream
@@ -122,6 +126,11 @@ Jobs are defined in `~/.claude/HEARTBEAT.md`:
 | condition | Pre-run shell check (exit 0 = run)                     | None (always run) |
 | notify    | macOS notification level: `all`, `failure`, `none`     | all               |
 
+Global settings go before any `##` job header:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| tick | Daemon wake interval (s/m/h/d) | 60s |
 
 ## CLI
 

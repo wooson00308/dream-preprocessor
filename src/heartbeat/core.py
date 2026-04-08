@@ -121,12 +121,13 @@ def _parse_timeout(s: str) -> int:
     return _parse_interval(s)
 
 
-def parse_heartbeat_md() -> list[dict]:
-    """Parse ~/.claude/HEARTBEAT.md and return job configs."""
+def parse_heartbeat_md() -> tuple[dict, list[dict]]:
+    """Parse ~/.claude/HEARTBEAT.md and return (global_config, job_configs)."""
     if not HEARTBEAT_FILE.exists():
-        return []
+        return {"tick": 60}, []
 
     content = HEARTBEAT_FILE.read_text(encoding="utf-8")
+    global_config = {"tick": 60}
     jobs = []
     current_job = None
 
@@ -163,11 +164,20 @@ def parse_heartbeat_md() -> list[dict]:
                     current_job["condition"] = val
                 elif key == "notify":
                     current_job["notify"] = val
+        elif not current_job and line.startswith("- "):
+            # Global config (before any ## job header)
+            kv = line[2:]
+            if ":" in kv:
+                key, val = kv.split(":", 1)
+                key = key.strip().lower()
+                val = val.strip()
+                if key == "tick":
+                    global_config["tick"] = _parse_interval(val)
 
     if current_job:
         jobs.append(current_job)
 
-    return [j for j in jobs if j["slug"] and j["prompt"]]
+    return global_config, [j for j in jobs if j["slug"] and j["prompt"]]
 
 
 def _check_condition(job: dict) -> bool:
@@ -269,10 +279,12 @@ def heartbeat_loop() -> None:
     state = _load_state()
 
     while True:
-        jobs = parse_heartbeat_md()
+        config, jobs = parse_heartbeat_md()
+        tick = config.get("tick", 60)
+
         if not jobs:
-            log.warning("HEARTBEAT.md에 잡이 없음, 60초 후 재확인")
-            time.sleep(60)
+            log.warning(f"HEARTBEAT.md에 잡이 없음, {tick}초 후 재확인")
+            time.sleep(tick)
             continue
 
         now = time.time()
@@ -298,6 +310,6 @@ def heartbeat_loop() -> None:
                     state.setdefault(name, {})["last_run"] = datetime.now().isoformat()
                     _save_state(state)
 
-        time.sleep(60)
+        time.sleep(tick)
 
 

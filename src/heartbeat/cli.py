@@ -300,14 +300,14 @@ def main() -> None:
     elif args.command == "once":
         _setup_log_file()
         state = _load_state()
-        jobs = parse_heartbeat_md()
+        _, jobs = parse_heartbeat_md()
         if args.job:
             jobs = [j for j in jobs if j["name"] == args.job]
         for job in jobs:
             run_job(job, state)
 
     elif args.command == "jobs":
-        jobs = parse_heartbeat_md()
+        _, jobs = parse_heartbeat_md()
         if not jobs:
             print("HEARTBEAT.md에 잡이 없음")
         else:
