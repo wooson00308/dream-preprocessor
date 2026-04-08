@@ -12,9 +12,9 @@ _잠을 자야 기억이 남는다._
 
   Session 1  ─┐
   Session 2  ─┤                    ┌─ Orient
-  Session 3  ─┼──►  Markdown  ──► │  Gather       ──►  MEMORY.md
-  Session 4  ─┤     (compact)      │  Consolidate       user.md
-  Session 5  ─┘                    └─ Prune             feedback.md
+  Session 3  ─┼──►  Markdown  ──► │  Gather        ──►  MEMORY.md
+  Session 4  ─┤     (compact)      │  Consolidate        user.md
+  Session 5  ─┘                    └─ Prune              feedback.md
                                                         project.md
        L3                                          L2        L1
    (raw logs)                                 (knowledge)  (index)
