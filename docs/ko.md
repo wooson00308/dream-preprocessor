@@ -103,13 +103,24 @@ launchd 등록 등 상세 설정은 [설정 가이드](setup.md)를 참고하세
 `~/.claude/HEARTBEAT.md`에 잡을 등록합니다:
 
 ```markdown
-## my-project
+# HEARTBEAT
+
+- tick: 60s
+
+## daily-summary
 - slug: -Users-yourname-Git-myproject
-- prompt: /dream
-- interval: 3h
-- timeout: 10m
-- condition: dream-prep status --slug="..." | grep -q "미처리: 0" && exit 1 || exit 0
-- notify: all
+- prompt: 지난 24시간 git log 확인하고 변경사항 요약해줘
+- interval: 1d
+- timeout: 5m
+- notify: failure
+
+## lint-check
+- slug: -Users-yourname-Git-myproject
+- prompt: npm run lint 돌려보고 에러 있으면 정리해줘
+- interval: 6h
+- timeout: 3m
+- condition: test -f package.json
+- notify: failure
 ```
 
 | 필드 | 설명 | 기본값 |
@@ -134,6 +145,17 @@ heartbeat once -j "name"  # 특정 잡 1회 실행
 heartbeat skills          # 사용 가능한 스킬 목록
 heartbeat install <name>  # 스킬 설치
 ```
+
+## 복구
+
+Claude Code를 재설치하여 `~/.claude/`가 초기화된 경우, 데몬은 크래시하지 않고 잡이 없는 상태로 대기합니다. 복구하려면:
+
+```bash
+heartbeat init              # HEARTBEAT.md 재생성
+heartbeat install dream     # 스킬 재설치 + 잡 등록
+```
+
+launchd plist와 pip 패키지는 Claude 재설치의 영향을 받지 않으므로 데몬 자체는 계속 실행됩니다.
 
 ## v0.1에서 마이그레이션
 

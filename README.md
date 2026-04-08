@@ -107,13 +107,20 @@ Jobs are defined in `~/.claude/HEARTBEAT.md`:
 
 - tick: 60s
 
-## my-project
+## daily-summary
 - slug: -Users-yourname-Git-myproject
-- prompt: /dream
-- interval: 3h
-- timeout: 10m
-- condition: dream-prep status --slug="..." | grep -q "미처리: 0" && exit 1 || exit 0
-- notify: all
+- prompt: Summarize today's git changes
+- interval: 1d
+- timeout: 5m
+- notify: failure
+
+## lint-check
+- slug: -Users-yourname-Git-myproject
+- prompt: Run npm run lint and report errors
+- interval: 6h
+- timeout: 3m
+- condition: test -f package.json
+- notify: failure
 ```
 
 
@@ -145,6 +152,17 @@ heartbeat once -j "name"  # Run specific job once
 heartbeat skills          # List available skills
 heartbeat install <name>  # Install a skill
 ```
+
+## Recovery
+
+If you reinstall Claude Code and `~/.claude/` is wiped, the daemon won't crash — it just finds no jobs and waits. To restore:
+
+```bash
+heartbeat init              # Recreate HEARTBEAT.md
+heartbeat install dream     # Reinstall skill + register jobs
+```
+
+Your launchd plist and pip packages survive a Claude reinstall, so the daemon itself keeps running.
 
 ## Migration from v0.1
 
