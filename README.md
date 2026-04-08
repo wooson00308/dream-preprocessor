@@ -119,20 +119,11 @@ After dream:
 
 ## Memory Layers
 
-```
-┌─────────────────────────────────────────┐
-│  L1: MEMORY.md                          │
-│  Always loaded. 200-line index.         │
-├─────────────────────────────────────────┤
-│  L2: Topic Files                        │
-│  Refined knowledge. Referenced on need. │
-│  user.md, feedback.md, project.md ...   │
-├─────────────────────────────────────────┤
-│  L3: Transcript JSONL                   │
-│  Raw conversation logs.                 │
-│  Auto-saved. Auto-refined. Zero effort. │
-└─────────────────────────────────────────┘
-```
+| Layer | Description |
+|-------|-------------|
+| L1: MEMORY.md | Always loaded. 200-line index. |
+| L2: Topic Files | Refined knowledge, referenced on need. (user.md, feedback.md, project.md ...) |
+| L3: Transcript JSONL | Raw conversation logs. Auto-saved, auto-refined, zero effort. |
 
 ---
 
