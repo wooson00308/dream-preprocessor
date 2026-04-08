@@ -35,14 +35,16 @@ Heartbeat는 이를 능동형으로 바꿔줍니다.
 
 ## 스킬
 
-스킬은 Claude가 깨어나서 실행하는 작업입니다. Heartbeat에 내장된 스킬을 한 줄로 설치할 수 있습니다.
+Claude Code는 [사용자 정의 스킬](https://docs.anthropic.com/en/docs/claude-code)을 지원합니다. 재사용 가능한 프롬프트를 만들어 Claude가 필요할 때 실행할 수 있는 프로토콜입니다. Heartbeat는 이 스킬을 주기적으로 자동 실행하는 역할을 합니다.
+
+`dream` 스킬은 이 조합으로 무엇이 가능한지 보여주는 예시로 포함되어 있습니다.
 
 ```bash
 heartbeat skills              # 사용 가능한 스킬 목록
 heartbeat install dream       # 스킬 설치
 ```
 
-### dream (내장)
+### dream (예시 스킬)
 
 세션 transcript를 자동으로 정제하여 장기 기억에 반영합니다. Claude Code는 매 대화를 JSONL로 저장하지만 다음 세션에서 다시 읽지 않습니다. dream 스킬이 이 transcript를 처리하여, 다음 세션이 시작될 때 이전 맥락을 이미 알고 있는 상태로 만들어줍니다.
 

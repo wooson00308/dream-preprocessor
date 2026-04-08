@@ -35,14 +35,16 @@ The daemon never calls the LLM itself. It only decides when to wake it.
 
 ## Skills
 
-Skills are what Claude does when it wakes up. Heartbeat ships with built-in skills that you can install with one command.
+Claude Code supports [user-created skills](https://docs.anthropic.com/en/docs/claude-code) — reusable prompts that Claude can execute on demand. Heartbeat takes this a step further by running these skills automatically on a schedule.
+
+The `dream` skill is included as a working example of what's possible with this combination.
 
 ```bash
 heartbeat skills              # List available skills
 heartbeat install dream       # Install a skill
 ```
 
-### dream (built-in)
+### dream (example skill)
 
 Automatically consolidates session transcripts into long-term memory. Claude Code saves every conversation as JSONL, but never reads them again. The dream skill processes these transcripts and updates memory so the next session starts with full context.
 
