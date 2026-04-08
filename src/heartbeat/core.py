@@ -3,19 +3,19 @@
 Generic scheduler that periodically executes claude CLI with configured prompts.
 """
 
+import json
 import os
 import re
 import subprocess
 import time
 import logging
-import signal
-import sys
 from datetime import datetime
 from pathlib import Path
 
 HEARTBEAT_FILE = Path.home() / ".claude" / "HEARTBEAT.md"
 LOG_DIR = Path.home() / ".claude" / "dream-heartbeat"
 PID_FILE = LOG_DIR / "heartbeat.pid"
+STATE_FILE = LOG_DIR / "state.json"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,6 +56,53 @@ def _is_running() -> int | None:
         return None
 
 
+# --- State persistence ---
+
+def _load_state() -> dict:
+    """Load persisted state from state.json."""
+    if not STATE_FILE.exists():
+        return {}
+    try:
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_state(state: dict) -> None:
+    """Save state to state.json."""
+    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# --- macOS notifications ---
+
+def _notify(title: str, message: str) -> None:
+    """Send macOS native notification via osascript."""
+    try:
+        subprocess.run(
+            ["osascript", "-e", f'display notification "{message}" with title "{title}"'],
+            capture_output=True, timeout=5,
+        )
+    except Exception:
+        pass
+
+
+def _should_notify(job: dict, event: str) -> bool:
+    """Check if notification should be sent for this event.
+
+    event: 'start', 'success', 'failure'
+    notify setting: 'all', 'failure', 'none' (default: 'all')
+    """
+    notify = job.get("notify", "all").lower()
+    if notify == "none":
+        return False
+    if notify == "failure":
+        return event == "failure"
+    return True  # all
+
+
+# --- Parsing ---
+
 def _parse_interval(s: str) -> int:
     """Parse interval string like '3h', '30m', '1d' to seconds."""
     s = s.strip().lower()
@@ -63,11 +110,10 @@ def _parse_interval(s: str) -> int:
     if match:
         val, unit = int(match.group(1)), match.group(2)
         return val * {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
-    # Try raw seconds
     try:
         return int(s)
     except ValueError:
-        return 3600  # default 1h
+        return 3600
 
 
 def _parse_timeout(s: str) -> int:
@@ -87,7 +133,6 @@ def parse_heartbeat_md() -> list[dict]:
     for line in content.split("\n"):
         line = line.strip()
 
-        # New job header: ## job-name
         if line.startswith("## "):
             if current_job:
                 jobs.append(current_job)
@@ -98,9 +143,9 @@ def parse_heartbeat_md() -> list[dict]:
                 "interval": 3600,
                 "timeout": 600,
                 "condition": "",
+                "notify": "all",
             }
         elif current_job and line.startswith("- "):
-            # Parse key: value
             kv = line[2:]
             if ":" in kv:
                 key, val = kv.split(":", 1)
@@ -116,6 +161,8 @@ def parse_heartbeat_md() -> list[dict]:
                     current_job["timeout"] = _parse_timeout(val)
                 elif key == "condition":
                     current_job["condition"] = val
+                elif key == "notify":
+                    current_job["notify"] = val
 
     if current_job:
         jobs.append(current_job)
@@ -135,7 +182,7 @@ def _check_condition(job: dict) -> bool:
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, Exception):
-        return True  # Run if condition check fails
+        return True
 
 
 def _slug_to_cwd(slug: str) -> Path:
@@ -143,12 +190,14 @@ def _slug_to_cwd(slug: str) -> Path:
     return Path("/" + slug.lstrip("-").replace("-", "/"))
 
 
-def run_job(job: dict) -> bool:
+def run_job(job: dict, state: dict) -> bool:
     """Execute a single heartbeat job."""
     name = job["name"]
     slug = job["slug"]
     prompt = job["prompt"]
     timeout = job["timeout"]
+
+    job_state = state.setdefault(name, {})
 
     # Check condition
     if not _check_condition(job):
@@ -162,6 +211,11 @@ def run_job(job: dict) -> bool:
 
     log.info(f"[{name}] 실행: claude -p \"{prompt}\" (cwd: {cwd})")
 
+    if _should_notify(job, "start"):
+        _notify("Heartbeat", f"[{name}] 실행 시작")
+
+    start_time = time.time()
+
     try:
         result = subprocess.run(
             ["claude", "-p", prompt],
@@ -170,16 +224,41 @@ def run_job(job: dict) -> bool:
             text=True,
             timeout=timeout,
         )
+        elapsed = round(time.time() - start_time, 1)
+
         if result.returncode == 0:
-            log.info(f"[{name}] 완료")
+            log.info(f"[{name}] 완료 ({elapsed}초)")
+            job_state["last_run"] = datetime.now().isoformat()
+            job_state["last_result"] = "success"
+            job_state["last_duration"] = elapsed
+            _save_state(state)
+            if _should_notify(job, "success"):
+                _notify("Heartbeat", f"[{name}] 완료 ({elapsed}초)")
+            return True
         else:
-            log.error(f"[{name}] 실패 (exit {result.returncode}): {result.stderr[:200]}")
-        return result.returncode == 0
+            log.error(f"[{name}] 실패 (exit {result.returncode}, {elapsed}초): {result.stderr[:200]}")
+            job_state["last_run"] = datetime.now().isoformat()
+            job_state["last_result"] = "failure"
+            job_state["last_duration"] = elapsed
+            _save_state(state)
+            if _should_notify(job, "failure"):
+                _notify("Heartbeat", f"[{name}] 실패 (exit {result.returncode})")
+            return False
+
     except subprocess.TimeoutExpired:
+        elapsed = round(time.time() - start_time, 1)
         log.error(f"[{name}] 타임아웃 ({timeout}초)")
+        job_state["last_run"] = datetime.now().isoformat()
+        job_state["last_result"] = "timeout"
+        job_state["last_duration"] = elapsed
+        _save_state(state)
+        if _should_notify(job, "failure"):
+            _notify("Heartbeat", f"[{name}] 타임아웃 ({timeout}초)")
         return False
     except FileNotFoundError:
         log.error("claude CLI를 찾을 수 없음")
+        if _should_notify(job, "failure"):
+            _notify("Heartbeat", "claude CLI를 찾을 수 없음")
         return False
 
 
@@ -187,8 +266,7 @@ def heartbeat_loop() -> None:
     """Main heartbeat loop. Re-reads HEARTBEAT.md each cycle."""
     log.info("Heartbeat 데몬 시작")
 
-    # Track last run time per job
-    last_run: dict[str, float] = {}
+    state = _load_state()
 
     while True:
         jobs = parse_heartbeat_md()
@@ -201,122 +279,25 @@ def heartbeat_loop() -> None:
         for job in jobs:
             name = job["name"]
             interval = job["interval"]
-            last = last_run.get(name, 0)
+            job_state = state.get(name, {})
+            last_run_str = job_state.get("last_run")
 
-            if now - last >= interval:
+            if last_run_str:
                 try:
-                    run_job(job)
+                    last_run_ts = datetime.fromisoformat(last_run_str).timestamp()
+                except ValueError:
+                    last_run_ts = 0
+            else:
+                last_run_ts = 0
+
+            if now - last_run_ts >= interval:
+                try:
+                    run_job(job, state)
                 except Exception as e:
                     log.error(f"[{name}] 에러: {e}")
-                last_run[name] = time.time()
+                    state.setdefault(name, {})["last_run"] = datetime.now().isoformat()
+                    _save_state(state)
 
-        # Sleep in 60s chunks for clean shutdown
         time.sleep(60)
 
 
-def main() -> None:
-    import argparse
-
-    parser = argparse.ArgumentParser(prog="dream-heartbeat", description="Heartbeat daemon — runs claude jobs on schedule")
-    sub = parser.add_subparsers(dest="command")
-
-    # start
-    p_start = sub.add_parser("start", help="Start heartbeat daemon")
-    p_start.add_argument("--foreground", "-f", action="store_true", help="Run in foreground")
-
-    # stop
-    sub.add_parser("stop", help="Stop heartbeat daemon")
-
-    # status
-    sub.add_parser("status", help="Check heartbeat status")
-
-    # once
-    p_once = sub.add_parser("once", help="Run all jobs once and exit")
-    p_once.add_argument("--job", "-j", help="Run specific job by name")
-
-    # jobs
-    sub.add_parser("jobs", help="List configured jobs from HEARTBEAT.md")
-
-    args = parser.parse_args()
-
-    if args.command == "start":
-        existing = _is_running()
-        if existing:
-            print(f"Heartbeat 이미 실행 중 (PID {existing})")
-            sys.exit(1)
-
-        _setup_log_file()
-
-        if args.foreground:
-            _write_pid()
-
-            def _shutdown(_sig, _frame):
-                log.info("Heartbeat 종료")
-                _remove_pid()
-                sys.exit(0)
-
-            signal.signal(signal.SIGTERM, _shutdown)
-            signal.signal(signal.SIGINT, _shutdown)
-            heartbeat_loop()
-        else:
-            pid = os.fork()
-            if pid > 0:
-                print(f"Heartbeat 시작 (PID {pid})")
-                sys.exit(0)
-
-            os.setsid()
-            _write_pid()
-            _setup_log_file()
-
-            sys.stdout = open(LOG_DIR / "stdout.log", "a")
-            sys.stderr = open(LOG_DIR / "stderr.log", "a")
-
-            def _shutdown(_sig, _frame):
-                log.info("Heartbeat 종료")
-                _remove_pid()
-                sys.exit(0)
-
-            signal.signal(signal.SIGTERM, _shutdown)
-            signal.signal(signal.SIGINT, _shutdown)
-            heartbeat_loop()
-
-    elif args.command == "stop":
-        existing = _is_running()
-        if existing:
-            os.kill(existing, signal.SIGTERM)
-            print(f"Heartbeat 종료 (PID {existing})")
-        else:
-            print("실행 중인 heartbeat 없음")
-
-    elif args.command == "status":
-        existing = _is_running()
-        if existing:
-            print(f"Heartbeat 실행 중 (PID {existing})")
-            log_files = sorted(LOG_DIR.glob("heartbeat_*.log"))
-            if log_files:
-                last_lines = log_files[-1].read_text(encoding="utf-8").strip().split("\n")[-5:]
-                print("최근 로그:")
-                for l in last_lines:
-                    print(f"  {l}")
-        else:
-            print("실행 중인 heartbeat 없음")
-
-    elif args.command == "once":
-        _setup_log_file()
-        jobs = parse_heartbeat_md()
-        if args.job:
-            jobs = [j for j in jobs if j["name"] == args.job]
-        for job in jobs:
-            run_job(job)
-
-    elif args.command == "jobs":
-        jobs = parse_heartbeat_md()
-        if not jobs:
-            print("HEARTBEAT.md에 잡이 없음")
-        else:
-            for j in jobs:
-                interval_h = j["interval"] / 3600
-                print(f"  {j['name']} — {j['prompt']} (매 {interval_h:.1f}시간, slug: {j['slug']})")
-
-    else:
-        parser.print_help()

@@ -1,129 +1,52 @@
-# dream-preprocessor
+# claude-heartbeat
 
-_Sleep well, remember everything._
+*Keep Claude alive between sessions.*
 
 **[한국어](docs/ko.md)**
 
 ---
 
-```
-  Transcript        dream-prep         /dream             Memory
-  (raw JSONL)       (preprocess)       (consolidate)      (topic files)
+Claude Code is reactive — it only works when you talk to it.
+Heartbeat makes it proactive.
 
-  Session 1 ─┐
-  Session 2 ─┤
-  Session 3 ─┼─────► Markdown ─────► ┌─ Orient ─────────►  MEMORY.md
-  Session 4 ─┤       (compact)       │  Gather             user.md
-  Session 5 ─┘                       │  Consolidate        feedback.md
-                                     └─ Prune              project.md
-
-      L3                                L2                     L1
-  (raw logs)                        (knowledge)              (index)
-```
-
----
-
-## The Problem
-
-Claude Code saves every conversation as a transcript JSONL file.
-The files pile up. Nobody reads them.
-
-When a new session starts, Claude is a blank slate.
-The 4-hour debugging session from yesterday? The architecture decision from last week? Gone.
-
-Claude Code only carries two things across sessions:
-
-| Storage | Auto-loaded | Limitation |
-|---------|-------------|------------|
-| CLAUDE.md | Entire file | You write and maintain it manually |
-| MEMORY.md | First 200 lines only | Topic files require manual Read to access |
-
-Everything is in the transcripts.
-The memory system already exists.
-The only missing piece is the bridge between them.
-
-## The Solution
-
-Humans experience things during the day and consolidate memories during sleep.
-The hippocampus reviews the day's experiences, keeps what matters, and discards the rest.
-
-dream does the same thing for Claude.
-
-It periodically reads transcripts, strips the noise,
-and turns them into memories that are ready for the next conversation.
-
-No need to say "remember this." It remembers.
-No need to say "organize that." It organizes.
-
-That's why it's called dream.
-
----
-
-## The Process
-
-### 1. Heartbeat --- Decide whether to wake up
+A lightweight daemon that periodically wakes Claude on schedule, runs skills, and goes back to sleep. Zero token cost when idle.
 
 ```
-[heartbeat daemon]
-     │
-     ├─ Wakes every 60 seconds
-     ├─ Parses job list from HEARTBEAT.md
-     ├─ Checks interval per job (e.g. every 3 hours)
-     └─ Runs condition check
-         └─ "Any unprocessed transcripts?"
-              ├─ No  → Skip (zero cost)
-              └─ Yes → Next step
-```
-
-The daemon itself never calls the LLM. Always-on, zero token cost.
-It only wakes Claude when there's work to do.
-
-### 2. dream-prep --- Preprocess
-
-Raw transcript JSONL is too large and noisy to feed directly to an LLM.
-
-dream-prep handles:
-- Extract only user/assistant text
-- Compress code blocks (4+ lines → first line + ellipsis)
-- Merge consecutive tool calls (`[tools: Bash, Read x2]`)
-- Strip system messages
-
-Thousands of JSONL lines become a compact, readable markdown.
-
-### 3. /dream --- Consolidate
-
-Claude wakes up and runs the `/dream` skill.
-It follows the 4 phases of KAIROS autoDream:
-
-| Phase | Name | Action |
-|-------|------|--------|
-| 1 | Orient | Survey current memory state |
-| 2 | Gather | Read preprocessed markdown |
-| 3 | Consolidate | Merge with existing memory, create/update topic files |
-| 4 | Prune & Index | Deduplicate, update MEMORY.md index |
-
-### 4. Memory --- Result
-
-After consolidation, memory is up to date.
-In the next session, Claude already knows the context.
-
-```
-Before dream:
-  "What's the project structure?"  ← asked every single session
-
-After dream:
-  (Already knows. Starts working immediately.)
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│  HEARTBEAT  │     │   condition  │     │  claude -p  │
+│  .md        │────►│   check      │────►│  "{prompt}" │
+│ (job config)│     │  (shell cmd) │     │ (skill run) │
+└─────────────┘     └──────────────┘     └─────────────┘
+                      skip if nothing        wake only
+                      to do (cost: 0)        when needed
 ```
 
 ---
 
-## Memory Layers
+## How it works
 
-| Layer | Description |
-|-------|-------------|
-| L1: MEMORY.md | Always loaded. 200-line index. |
-| L2: Topic Files | Refined knowledge, referenced on need. (user.md, feedback.md, project.md ...) |
-| L3: Transcript JSONL | Raw conversation logs. Auto-saved, auto-refined, zero effort. |
+1. Heartbeat daemon runs in the background (via launchd)
+2. Every 60 seconds, it checks configured jobs
+3. For each job whose interval has elapsed, it runs a condition check
+4. If the condition passes, it wakes Claude with `claude -p "{prompt}"`
+5. Claude executes the skill and goes back to sleep
+
+The daemon never calls the LLM itself. It only decides when to wake it.
+
+## Skills
+
+Skills are what Claude does when it wakes up. Heartbeat ships with built-in skills that you can install with one command.
+
+```bash
+heartbeat skills              # List available skills
+heartbeat install dream       # Install a skill
+```
+
+### dream (built-in)
+
+Automatically consolidates session transcripts into long-term memory. Claude Code saves every conversation as JSONL, but never reads them again. The dream skill processes these transcripts and updates memory so the next session starts with full context.
+
+See [skills/dream/README.md](skills/dream/README.md) for details.
 
 ---
 
@@ -136,24 +59,26 @@ After dream:
 ## Quick Start
 
 ```bash
-git clone https://github.com/wooson00308/dream-preprocessor.git
-cd dream-preprocessor
-pip3 install -e .
+pip install claude-heartbeat
 
-# Register /dream skill
-mkdir -p ~/.claude/skills/dream
-cp skill/SKILL.md ~/.claude/skills/dream/SKILL.md
+# Install the dream skill (copies SKILL.md + registers heartbeat jobs)
+heartbeat install dream
 
-# Test
-dream-prep list
-dream-heartbeat once
+# Verify
+heartbeat jobs
+
+# Test run
+heartbeat once
+
+# Start daemon
+heartbeat start
 ```
 
-For full setup including launchd registration, see the [Setup Guide](docs/setup.md).
+For launchd registration and detailed setup, see the [Setup Guide](docs/setup.md).
 
 ## Configuration
 
-Register jobs in `~/.claude/HEARTBEAT.md`:
+Jobs are defined in `~/.claude/HEARTBEAT.md`:
 
 ```markdown
 ## my-project
@@ -162,15 +87,41 @@ Register jobs in `~/.claude/HEARTBEAT.md`:
 - interval: 3h
 - timeout: 10m
 - condition: dream-prep status --slug="..." | grep -q "미처리: 0" && exit 1 || exit 0
+- notify: all
 ```
 
-| Field | Description | Default |
-|-------|-------------|---------|
-| slug | Project slug (`~/.claude/projects/` subdirectory name) | Required |
-| prompt | Prompt passed to `claude -p` | Required |
-| interval | Run interval (s/m/h/d) | 1h |
-| timeout | Timeout (s/m/h/d) | 600s |
-| condition | Pre-run shell check (exit 0 = run) | None (always run) |
+
+| Field     | Description                                            | Default           |
+| --------- | ------------------------------------------------------ | ----------------- |
+| slug      | Project slug (`~/.claude/projects/` subdirectory name) | Required          |
+| prompt    | Prompt passed to `claude -p`                           | Required          |
+| interval  | Run interval (s/m/h/d)                                 | 1h                |
+| timeout   | Timeout (s/m/h/d)                                      | 600s              |
+| condition | Pre-run shell check (exit 0 = run)                     | None (always run) |
+| notify    | macOS notification level: `all`, `failure`, `none`     | all               |
+
+
+## CLI
+
+```bash
+heartbeat start           # Start daemon (background)
+heartbeat start -f        # Foreground mode
+heartbeat stop            # Stop daemon
+heartbeat status          # Status + job states + recent logs
+heartbeat jobs            # List configured jobs
+heartbeat once            # Run all jobs once
+heartbeat once -j "name"  # Run specific job once
+heartbeat skills          # List available skills
+heartbeat install <name>  # Install a skill
+```
+
+## Migration from v0.1
+
+If you're upgrading from `dream-preprocessor` v0.1:
+
+- `dream-heartbeat` still works as an alias for `heartbeat`
+- `dream-prep` still works as before
+- No changes needed to your `HEARTBEAT.md` or launchd plist
 
 ## License
 
@@ -178,4 +129,4 @@ MIT
 
 ---
 
-_under the moonlight, Claude dreams._
+*under the moonlight, Claude dreams.*
